@@ -1,0 +1,13 @@
+# ninja log v5
+19	485	1790806520414733200	V2VSimulation_autogen/timestamp	4d8254195d4cad63
+19	485	1790806520414733200	V2VSimulation_autogen/mocs_compilation.cpp	4d8254195d4cad63
+19	485	1790806520414733200	/workspace/build-linux/V2VSimulation_autogen/timestamp	4d8254195d4cad63
+19	485	1790806520414733200	/workspace/build-linux/V2VSimulation_autogen/mocs_compilation.cpp	4d8254195d4cad63
+496	1524	1790806521462470700	CMakeFiles/V2VSimulation.dir/src/RoadGraph.cpp.o	27fa490f98066373
+494	1555	1790806521463857700	CMakeFiles/V2VSimulation.dir/src/OsmParser.cpp.o	659de6d231f771d
+1548	2550	1790806522483134400	CMakeFiles/V2VSimulation.dir/src/VehicleSimulation.cpp.o	e884cf89b4602948
+490	2625	1790806522559871900	CMakeFiles/V2VSimulation.dir/V2VSimulation_autogen/mocs_compilation.cpp.o	640738234b76e45a
+498	2655	1790806522563957000	CMakeFiles/V2VSimulation.dir/src/TileLayer.cpp.o	a9e83def7c5f59c4
+493	2736	1790806522672712600	CMakeFiles/V2VSimulation.dir/src/MapView.cpp.o	3c578233e64a04c
+491	3027	1790806522965025700	CMakeFiles/V2VSimulation.dir/src/main.cpp.o	3f0a4c71ee794deb
+3035	3592	1790806523529536800	V2VSimulation	edef0c6d29fa3f15

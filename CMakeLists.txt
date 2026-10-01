@@ -7,16 +7,39 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-# IMPORTANT : adapte ce chemin à ta version exacte de Qt installée (MSVC, pas MinGW)
-set(CMAKE_PREFIX_PATH "C:/Qt/6.11.2/msvc2022_64")
+# Chemin Qt en dur uniquement utile sous Windows (Visual Studio) ; sous Linux (Docker),
+# Qt est installé via apt et trouvé automatiquement par find_package sans ce chemin.
+if (WIN32)
+    list(APPEND CMAKE_PREFIX_PATH "C:/Qt/6.11.2/msvc2022_64")
+endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
+find_package(pugixml CONFIG REQUIRED)
 
 add_executable(V2VSimulation
     src/main.cpp
     src/MapView.cpp
     src/MapView.h
+    src/OsmParser.cpp
+    src/OsmParser.h
+    src/RoadGraph.cpp
+    src/RoadGraph.h
+    src/TileLayer.cpp
+    src/TileLayer.h
+    src/Vehicle.h
+    src/VehicleSimulation.cpp
+    src/VehicleSimulation.h
+    src/WebMercator.h
 )
 
-target_link_libraries(V2VSimulation PRIVATE Qt6::Widgets)
+if (MSVC)
+    # Indispensable avec Qt6 : sans ce flag, MSVC ne rapporte pas correctement __cplusplus,
+    # ce qui fait échouer la détection de fonctionnalités C++17 dans les headers Qt
+    # (symptôme typique : erreurs de syntaxe dans qregularexpression.h alors que le bug n'y est pas).
+    target_compile_options(V2VSimulation PRIVATE /Zc:__cplusplus /permissive-)
+endif()
+
+target_link_libraries(V2VSimulation PRIVATE Qt6::Widgets Qt6::Network pugixml::pugixml)
 target_include_directories(V2VSimulation PRIVATE src)
+
+target_compile_definitions(V2VSimulation PRIVATE DATA_DIR="${CMAKE_SOURCE_DIR}/data")

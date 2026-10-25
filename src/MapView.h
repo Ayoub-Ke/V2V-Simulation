@@ -43,6 +43,15 @@ public:
     void resetSimulation();
     int vehicleCount() const { return static_cast<int>(m_simulation.vehicles().size()); }
 
+    // --- Étape 4 : affichage des arêtes d'interférences ---
+    void setShowInterferenceEdges(bool show);
+    bool showInterferenceEdges() const { return m_showInterferenceEdges; }
+
+    // --- Étape 5 : coloration du graphe ---
+    void setSimulationColoringAlgorithm(ColoringAlgorithm algo);
+    void setSimulationColoringEnabled(bool enabled);
+    bool simulationColoringEnabled() const { return m_simulation.coloringEnabled(); }
+
 signals:
     void mapLoaded(int wayCount, int nodeCount);
     void graphBuilt(int nodeCount, int edgeCount, int intersectionCount);
@@ -50,6 +59,7 @@ signals:
     void zoneSelected(double minLat, double maxLat, double minLon, double maxLon);
     void selectionModeChanged(bool active);
     void viewResized();
+    void coloringStatsUpdated(int colorCount, double timeMs);
 
 protected:
     void wheelEvent(QWheelEvent* event) override;
@@ -75,6 +85,8 @@ private:
     bool m_drawingZone = false;
     QPointF m_zoneStartScenePos;
     QGraphicsRectItem* m_zoneItem = nullptr;
+
+    bool m_showInterferenceEdges = true;
 
     VehicleSimulation m_simulation;
     QTimer* m_simTimer;

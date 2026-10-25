@@ -1,5 +1,6 @@
 #include <QAction>
 #include <QApplication>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -18,6 +19,7 @@
 #include <algorithm>
 
 #include "MapView.h"
+#include "GraphColoring.h"
 
 #ifndef DATA_DIR
 #define DATA_DIR "."
@@ -168,6 +170,54 @@ int main(int argc, char* argv[])
 
     simToolbar->addSeparator();
     QAction* resetAction = simToolbar->addAction(QString::fromUtf8("\u21BB  Réinitialiser"));
+
+    simToolbar->addSeparator();
+    QAction* toggleEdgesAction = simToolbar->addAction(QString::fromUtf8("\u2713  Arêtes d'interférences"));
+    toggleEdgesAction->setCheckable(true);
+    toggleEdgesAction->setChecked(true);
+    QObject::connect(toggleEdgesAction, &QAction::toggled, mapView, &MapView::setShowInterferenceEdges);
+
+    simToolbar->addSeparator();
+
+    // --- Étape 5 : coloration du graphe ---
+    QLabel* algoLabel = new QLabel("Algorithme :", simToolbar);
+    simToolbar->addWidget(algoLabel);
+
+    QComboBox* algoCombo = new QComboBox(simToolbar);
+    algoCombo->addItem("Gloutonne", static_cast<int>(ColoringAlgorithm::Greedy));
+    algoCombo->addItem("Welsh-Powell", static_cast<int>(ColoringAlgorithm::WelshPowell));
+    algoCombo->setStyleSheet(
+        "QComboBox { background-color: #1c1e24; color: #e0e0e4; border: 1px solid #2f323b;"
+        "           border-radius: 4px; padding: 4px 6px; }"
+        "QComboBox::drop-down { border: none; }"
+        "QComboBox::down-arrow { image: none; }");
+    simToolbar->addWidget(algoCombo);
+
+    QAction* toggleColoringAction = simToolbar->addAction(QString::fromUtf8("\u2713  Coloration"));
+    toggleColoringAction->setCheckable(true);
+    toggleColoringAction->setChecked(false);
+
+    QLabel* colorStatsLabel = new QLabel("", simToolbar);
+    colorStatsLabel->setStyleSheet("color: #9a9aa0; padding: 0 8px;");
+    simToolbar->addWidget(colorStatsLabel);
+
+    QObject::connect(algoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+        [mapView, algoCombo](int index) {
+            ColoringAlgorithm algo = static_cast<ColoringAlgorithm>(algoCombo->currentData().toInt());
+            mapView->setSimulationColoringAlgorithm(algo);
+        });
+
+    QObject::connect(toggleColoringAction, &QAction::toggled,
+        [mapView, toggleColoringAction, colorStatsLabel](bool enabled) {
+            mapView->setSimulationColoringEnabled(enabled);
+            toggleColoringAction->setText(enabled ? QString::fromUtf8("\u2713  Coloration")
+                : QString::fromUtf8("Coloration"));
+        });
+
+    QObject::connect(mapView, &MapView::coloringStatsUpdated,
+        [colorStatsLabel](int colorCount, double timeMs) {
+            colorStatsLabel->setText(QString("%1 couleurs (%2ms)").arg(colorCount).arg(timeMs, 0, 'f', 1));
+        });
 
     double speedMultiplier = 1.0;
     auto updateSpeedLabel = [speedLabel, &speedMultiplier]() {

@@ -107,4 +107,31 @@ void VehicleSimulation::tick(double dtSeconds)
     const double dt = dtSeconds * m_speedMultiplier;
     for (Vehicle &v : m_vehicles)
         advance(v, v.speed * dt);
+
+    // --- Étape 4 : mise à jour du graphe d'interférences ---
+    updateInterferenceGraph();
+}
+
+void VehicleSimulation::updateInterferenceGraph()
+{
+    if (!m_graph || !m_projection)
+        return;
+
+    // Calculer le rayon de transmission maximal parmi tous les véhicules
+    double maxRange = 0.0;
+    for (const Vehicle& v : m_vehicles) {
+        maxRange = std::max(maxRange, v.transmissionRadius);
+    }
+
+    // Reconstruire le graphe d'interférences
+    m_interferenceGraph.build(m_vehicles, m_graph->nodes(), *m_projection, maxRange);
+
+    // --- Étape 5 : coloration du graphe ---
+    if (m_coloringEnabled) {
+        m_coloringResult = m_graphColoring.color(
+            m_vehicles.size(),
+            m_interferenceGraph.edges(),
+            m_coloringAlgorithm
+        );
+    }
 }

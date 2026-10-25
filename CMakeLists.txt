@@ -30,6 +30,10 @@ add_executable(V2VSimulation
     src/VehicleSimulation.cpp
     src/VehicleSimulation.h
     src/WebMercator.h
+    src/InterferenceGraph.cpp
+    src/InterferenceGraph.h
+    src/GraphColoring.cpp
+    src/GraphColoring.h
 )
 
 if (MSVC)

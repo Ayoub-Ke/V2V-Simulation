@@ -53,6 +53,7 @@ MapView::MapView(QWidget* parent)
     m_scene->setItemIndexMethod(QGraphicsScene::NoIndex);
 
     m_simulation.setGraph(&m_graph);
+    m_simulation.setProjection(&m_proj);
     m_simTimer = new QTimer(this);
     m_simTimer->setInterval(33); // ~30 Hz
     connect(m_simTimer, &QTimer::timeout, this, &MapView::onSimulationTick);
@@ -284,10 +285,40 @@ void MapView::resetSimulation()
     viewport()->update();
 }
 
+void MapView::setShowInterferenceEdges(bool show)
+{
+    m_showInterferenceEdges = show;
+    viewport()->update();
+}
+
+void MapView::setSimulationColoringAlgorithm(ColoringAlgorithm algo)
+{
+    m_simulation.setColoringAlgorithm(algo);
+}
+
+void MapView::setSimulationColoringEnabled(bool enabled)
+{
+    m_simulation.setColoringEnabled(enabled);
+    if (enabled) {
+        // Force une mise à jour immédiate pour afficher les stats
+        m_simulation.updateInterferenceGraph();
+        const auto& result = m_simulation.coloringResult();
+        emit coloringStatsUpdated(result.colorCount, result.computationTimeMs);
+    }
+    viewport()->update();
+}
+
 void MapView::onSimulationTick()
 {
     const double dt = m_simClock.restart() / 1000.0; // secondes réelles écoulées
     m_simulation.tick(dt);
+
+    // Émettre les stats de coloration si activé
+    if (m_simulation.coloringEnabled()) {
+        const auto& result = m_simulation.coloringResult();
+        emit coloringStatsUpdated(result.colorCount, result.computationTimeMs);
+    }
+
     viewport()->update(); // redessine juste drawForeground() : pas de scène à réindexer
 }
 
@@ -306,14 +337,53 @@ void MapView::drawForeground(QPainter* painter, const QRectF& rect)
     const double margin = radius * 2.0;
 
     painter->setRenderHint(QPainter::Antialiasing, true);
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(70, 170, 255));
 
-    for (const Vehicle& v : vehicles) {
+    // --- Étape 4 : dessiner les arêtes d'interférences ---
+    if (m_showInterferenceEdges) {
+        const auto& interferenceGraph = m_simulation.interferenceGraph();
+        if (interferenceGraph.edgeCount() > 0) {
+            QPen edgePen(QColor(255, 180, 0, 180)); // Jaune orangé foncé semi-transparent
+            edgePen.setWidthF(1.5);
+            edgePen.setCosmetic(true);
+            painter->setPen(edgePen);
+
+            for (const InterferenceEdge& edge : interferenceGraph.edges()) {
+                const Vehicle& va = vehicles[edge.vehicleA];
+                const Vehicle& vb = vehicles[edge.vehicleB];
+
+                // Culling : ne dessine que si au moins un des véhicules est visible
+                if ((va.x < rect.left() - margin || va.x > rect.right() + margin ||
+                     va.y < rect.top() - margin || va.y > rect.bottom() + margin) &&
+                    (vb.x < rect.left() - margin || vb.x > rect.right() + margin ||
+                     vb.y < rect.top() - margin || vb.y > rect.bottom() + margin))
+                    continue;
+
+                painter->drawLine(QPointF(va.x, va.y), QPointF(vb.x, vb.y));
+            }
+        }
+    }
+
+    // Dessiner les véhicules
+    painter->setPen(Qt::NoPen);
+
+    const bool useColoring = m_simulation.coloringEnabled();
+    const auto& vehicleColors = m_simulation.vehicleColors();
+    const int colorCount = m_simulation.coloringResult().colorCount;
+
+    for (size_t i = 0; i < vehicles.size(); ++i) {
+        const Vehicle& v = vehicles[i];
+
         // Ne dessine pas les véhicules hors de la zone visible à l'écran (culling)
         if (v.x < rect.left() - margin || v.x > rect.right() + margin ||
             v.y < rect.top() - margin || v.y > rect.bottom() + margin)
             continue;
+
+        // Utiliser la couleur de coloration si activée, sinon bleu par défaut
+        if (useColoring && i < vehicleColors.size() && vehicleColors[i] >= 0) {
+            painter->setBrush(GraphColoring::colorForIndex(vehicleColors[i], colorCount));
+        } else {
+            painter->setBrush(QColor(70, 170, 255));
+        }
 
         painter->drawEllipse(QPointF(v.x, v.y), radius, radius);
     }

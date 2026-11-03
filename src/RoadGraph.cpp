@@ -20,7 +20,8 @@ double haversineMeters(double lat1, double lon1, double lat2, double lon2)
     const double a = std::sin(dLat / 2) * std::sin(dLat / 2)
                     + std::cos(lat1 * kDegToRad) * std::cos(lat2 * kDegToRad)
                     * std::sin(dLon / 2) * std::sin(dLon / 2);
-    const double c = 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
+    const double safeA = std::clamp(a, 0.0, 1.0);
+    const double c = 2 * std::atan2(std::sqrt(safeA), std::sqrt(1 - safeA));
     return kEarthRadius * c;
 }
 
@@ -31,10 +32,14 @@ void RoadGraph::clear()
     m_nodes.clear();
     m_edges.clear();
     m_adjacency.clear();
+    m_neighbors.clear();
 }
 
 void RoadGraph::addEdge(int64_t from, int64_t to, double length, bool oneway, int64_t wayId)
 {
+    if (from == to || !std::isfinite(length) || length < 0.001) return;
+    m_neighbors[from].push_back(to);
+    m_neighbors[to].push_back(from);
     GraphEdge edge;
     edge.from = from;
     edge.to = to;
@@ -96,6 +101,11 @@ void RoadGraph::build(const OsmData &data, const WebMercatorProjection &proj)
             addEdge(a, b, length, way.oneway, way.id);
         }
     }
+    for (auto& entry : m_neighbors) {
+        auto& neighbors = entry.second;
+        std::sort(neighbors.begin(), neighbors.end());
+        neighbors.erase(std::unique(neighbors.begin(), neighbors.end()), neighbors.end());
+    }
 }
 
 const std::vector<size_t> &RoadGraph::edgesFrom(int64_t nodeId) const
@@ -106,14 +116,6 @@ const std::vector<size_t> &RoadGraph::edgesFrom(int64_t nodeId) const
 
 int RoadGraph::degree(int64_t nodeId) const
 {
-    std::vector<int64_t> wayIds;
-
-    for (const GraphEdge &e : m_edges) {
-        if (e.from == nodeId || e.to == nodeId)
-            wayIds.push_back(e.wayId);
-    }
-
-    std::sort(wayIds.begin(), wayIds.end());
-    wayIds.erase(std::unique(wayIds.begin(), wayIds.end()), wayIds.end());
-    return static_cast<int>(wayIds.size());
+    auto it = m_neighbors.find(nodeId);
+    return it == m_neighbors.end() ? 0 : int(it->second.size());
 }

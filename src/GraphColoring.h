@@ -36,16 +36,10 @@ public:
 
     // Palette de couleurs pour l'affichage (génère des couleurs distinctes)
     static QColor colorForIndex(int index, int totalColors);
+    static bool isValid(size_t vertexCount, const std::vector<InterferenceEdge>& edges,
+                        const ColoringResult& result);
 
 private:
-    // Algorithme gloutonne : parcourt les sommets dans l'ordre, attribue la plus petite couleur disponible
-    ColoringResult greedyColoring(size_t vertexCount,
-                                  const std::vector<InterferenceEdge>& edges);
-
-    // Algorithme Welsh-Powell : trie les sommets par degré décroissant, puis coloration gloutonne
-    ColoringResult welshPowellColoring(size_t vertexCount,
-                                       const std::vector<InterferenceEdge>& edges);
-
     // Construit la liste d'adjacence à partir des arêtes
     std::vector<std::vector<size_t>> buildAdjacency(size_t vertexCount,
                                                      const std::vector<InterferenceEdge>& edges) const;

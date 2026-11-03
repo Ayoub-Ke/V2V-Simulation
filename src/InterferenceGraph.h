@@ -26,7 +26,7 @@ public:
 
     // Construit le graphe d'interférences à partir des positions des véhicules
     // vehicles : vecteur de véhicules avec leurs positions (x,y en pixels écran)
-    // nodePositions : positions GPS réelles des nœuds du graphe routier (pour calcul de distance)
+    // nodePositions : conservé pour compatibilité ; les positions viennent des véhicules
     // projection : projection WebMercator pour convertir pixels <-> GPS
     // maxRange : rayon de transmission en mètres (si distance < maxRange, il y a interférence)
     void build(const std::vector<Vehicle>& vehicles,
@@ -45,22 +45,6 @@ public:
     void setSpatialHashingEnabled(bool enabled) { m_useSpatialHashing = enabled; }
 
 private:
-    // Version naïve O(n²) - simple mais lente pour beaucoup de véhicules
-    void buildNaive(const std::vector<Vehicle>& vehicles,
-                    const std::unordered_map<int64_t, GraphNode>& nodePositions,
-                    const WebMercatorProjection& projection,
-                    double maxRange);
-
-    // Version optimisée avec spatial hashing O(n) en pratique
-    void buildWithSpatialHash(const std::vector<Vehicle>& vehicles,
-                              const std::unordered_map<int64_t, GraphNode>& nodePositions,
-                              const WebMercatorProjection& projection,
-                              double maxRange);
-
-    // Convertit position écran (pixels) en coordonnées GPS, puis calcule distance réelle
-    double realDistance(double x1, double y1, double x2, double y2,
-                        const WebMercatorProjection& projection) const;
-
     std::vector<InterferenceEdge> m_edges;
     size_t m_vertexCount = 0;
     bool m_useSpatialHashing = true;

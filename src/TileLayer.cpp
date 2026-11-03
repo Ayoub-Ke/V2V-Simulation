@@ -20,11 +20,29 @@ TileLayer::TileLayer(QGraphicsScene *scene, QObject *parent)
 
 void TileLayer::clear()
 {
-    for (QGraphicsPixmapItem *item : m_items) {
-        m_scene->removeItem(item);
-        delete item;
+    ++m_generation;
+    for (auto* reply : m_pending) {
+        disconnect(reply, nullptr, this, nullptr);
+        reply->abort();
+        reply->deleteLater();
+    }
+    m_pending.clear();
+    if (m_scene) {
+        for (QGraphicsPixmapItem *item : m_items) {
+            m_scene->removeItem(item);
+            delete item;
+        }
     }
     m_items.clear();
+}
+
+TileLayer::~TileLayer() { clear(); }
+
+void TileLayer::setVisible(bool visible)
+{
+    m_visible = visible;
+    if (m_scene)
+        for (auto* item : m_items) item->setVisible(visible);
 }
 
 QString TileLayer::cacheFilePath(int tx, int ty) const
@@ -81,11 +99,15 @@ void TileLayer::requestTile(int tx, int ty)
     // Obligatoire : le serveur de tuiles OSM rejette les requêtes sans User-Agent identifiable.
     request.setHeader(QNetworkRequest::UserAgentHeader,
                        QByteArray("V2VSimulation-UHA-ProjetEtudiant/1.0"));
+    request.setTransferTimeout(8000);
 
     QNetworkReply *reply = m_network->get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, tx, ty, cachePath]() {
+    m_pending.insert(reply);
+    const auto generation = m_generation;
+    connect(reply, &QNetworkReply::finished, this, [this, reply, tx, ty, cachePath, generation]() {
+        m_pending.remove(reply);
         reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError)
+        if (generation != m_generation || !m_scene || reply->error() != QNetworkReply::NoError)
             return;
 
         const QByteArray data = reply->readAll();
@@ -103,6 +125,7 @@ void TileLayer::requestTile(int tx, int ty)
 
 void TileLayer::placeTile(int tx, int ty, const QPixmap &pixmap)
 {
+    if (!m_scene) return;
     const double worldX = tx * WebMercatorProjection::kTileSize;
     const double worldY = ty * WebMercatorProjection::kTileSize;
     const double sceneX = worldX - m_proj.originPx;
@@ -111,6 +134,8 @@ void TileLayer::placeTile(int tx, int ty, const QPixmap &pixmap)
     QGraphicsPixmapItem *item = m_scene->addPixmap(pixmap);
     item->setPos(sceneX, sceneY);
     item->setZValue(-100); // toujours derrière les routes/graphe
+    item->setOpacity(0.62);
+    item->setVisible(m_visible);
     item->setTransformationMode(Qt::SmoothTransformation);
     m_items.append(item);
 }

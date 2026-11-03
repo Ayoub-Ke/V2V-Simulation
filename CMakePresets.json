@@ -3,11 +3,23 @@
   "configurePresets": [
     {
       "name": "default",
+      "displayName": "Windows (vcpkg)",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows"},
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "C:/dev/vcpkg/scripts/buildsystems/vcpkg.cmake"
       }
+    },
+    {
+      "name": "linux",
+      "displayName": "Linux / Docker",
+      "condition": {"type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux"},
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-linux",
+      "cacheVariables": {"CMAKE_BUILD_TYPE": "Release", "BUILD_TESTING": "ON"}
     }
-  ]
+  ],
+  "buildPresets": [{"name": "linux", "configurePreset": "linux"}],
+  "testPresets": [{"name": "linux", "configurePreset": "linux", "output": {"outputOnFailure": true}}]
 }

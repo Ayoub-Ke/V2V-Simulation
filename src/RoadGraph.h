@@ -38,7 +38,7 @@ public:
 
     const std::vector<size_t> &edgesFrom(int64_t nodeId) const;
 
-    // Nombre de routes différentes connectées à un nœud : >= 3 => intersection réelle
+    // Nombre de voisins physiques distincts (indépendant du découpage OSM).
     int degree(int64_t nodeId) const;
 
     size_t nodeCount() const { return m_nodes.size(); }
@@ -50,4 +50,5 @@ private:
     std::unordered_map<int64_t, GraphNode> m_nodes;
     std::vector<GraphEdge> m_edges;
     std::unordered_map<int64_t, std::vector<size_t>> m_adjacency;
+    std::unordered_map<int64_t, std::vector<int64_t>> m_neighbors;
 };

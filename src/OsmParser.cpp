@@ -3,10 +3,23 @@
 #include <pugixml.hpp>
 
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
+#include <cerrno>
 #include <limits>
 #include <unordered_set>
 
 namespace {
+
+    bool coordinate(pugi::xml_attribute attribute, double& value)
+    {
+        if (!attribute) return false;
+        char* end = nullptr;
+        errno = 0;
+        const char* text = attribute.value();
+        value = std::strtod(text, &end);
+        return end != text && *end == '\0' && errno != ERANGE && std::isfinite(value);
+    }
 
     const std::unordered_set<std::string> kDrivable = {
         "motorway", "motorway_link", "trunk", "trunk_link",
@@ -41,6 +54,7 @@ RoadCategory OsmParser::categoryOf(const std::string& highway)
 bool OsmParser::load(const std::string& path, OsmData& out, std::string& error)
 {
     out = OsmData{};
+    error.clear();
 
     pugi::xml_document doc;
     pugi::xml_parse_result result = doc.load_file(path.c_str());
@@ -58,8 +72,13 @@ bool OsmParser::load(const std::string& path, OsmData& out, std::string& error)
     // 1) Tous les noeuds (id -> lat/lon)
     for (pugi::xml_node n : root.children("node")) {
         OsmNode node;
-        node.lat = n.attribute("lat").as_double();
-        node.lon = n.attribute("lon").as_double();
+        if (!n.attribute("id") || !coordinate(n.attribute("lat"), node.lat) ||
+            !coordinate(n.attribute("lon"), node.lon) ||
+            std::abs(node.lat) > 85.05112878 || std::abs(node.lon) > 180) {
+            error = "Coordonnées OSM absentes ou hors des limites de la carte Mercator";
+            out = OsmData{};
+            return false;
+        }
         out.nodes.emplace(n.attribute("id").as_llong(), node);
     }
 
@@ -67,6 +86,8 @@ bool OsmParser::load(const std::string& path, OsmData& out, std::string& error)
     for (pugi::xml_node w : root.children("way")) {
         OsmWay way;
         way.id = w.attribute("id").as_llong();
+        std::string oneway;
+        bool roundabout = false;
 
         for (pugi::xml_node tag : w.children("tag")) {
             const std::string k = tag.attribute("k").as_string();
@@ -76,10 +97,10 @@ bool OsmParser::load(const std::string& path, OsmData& out, std::string& error)
                 way.highway = v;
             }
             else if (k == "oneway") {
-                way.oneway = (v == "yes" || v == "true" || v == "1");
+                oneway = v;
             }
             else if (k == "junction" && v == "roundabout") {
-                way.oneway = true;
+                roundabout = true;
             }
         }
 
@@ -89,10 +110,24 @@ bool OsmParser::load(const std::string& path, OsmData& out, std::string& error)
         for (pugi::xml_node nd : w.children("nd"))
             way.nodeRefs.push_back(nd.attribute("ref").as_llong());
 
+        way.oneway = oneway == "yes" || oneway == "true" || oneway == "1" || oneway == "-1"
+                     || (oneway.empty() && (roundabout || way.highway == "motorway"));
+        if (oneway == "-1") std::reverse(way.nodeRefs.begin(), way.nodeRefs.end());
+
         if (way.nodeRefs.size() < 2)
             continue;
 
-        out.ways.push_back(std::move(way));
+        bool usable = false;
+        for (size_t i = 1; i < way.nodeRefs.size(); ++i) {
+            auto a = out.nodes.find(way.nodeRefs[i - 1]);
+            auto b = out.nodes.find(way.nodeRefs[i]);
+            if (a != out.nodes.end() && b != out.nodes.end() &&
+                (a->second.lat != b->second.lat || a->second.lon != b->second.lon)) {
+                usable = true;
+                break;
+            }
+        }
+        if (usable) out.ways.push_back(std::move(way));
     }
 
     if (out.ways.empty()) {

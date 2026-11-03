@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 
 // Un véhicule circulant sur le graphe routier (Étape 3).
 struct Vehicle {
